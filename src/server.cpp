@@ -42,19 +42,20 @@ void Server::importAnime()
 {
 	std::fstream fs;
 	fs.open("database/users.txt", std::fstream::in);
-	
+
 	std::string line;
 	std::vector<std::string> files;
 	while (std::getline(fs, line))
 	{
 		files.push_back(line);
 	}
-	
+
 	fs.close();
-	
+
 	for (auto& file : files)
 	{
 		fs.open(file, std::fstream::in);
+		Anime_map anime;
 		while (std::getline(fs, line))
 		{
 			std::stringstream ss(line);
@@ -71,10 +72,9 @@ void Server::importAnime()
 			uint64_t id;
 			std::istringstream isid(s_id);
 			isid >> id;
-			Anime_map anime;
-			anime.insert(std::make_pair(anime_arr[0], Data{ name , std::stoi(anime_arr[2]), std::stoi(anime_arr[3])}));
-			users_[id].push_back(anime);
-		}
+			anime.insert(std::make_pair(anime_arr[0], Data{ name , std::stoi(anime_arr[2]), std::stoi(anime_arr[3]) }));
+			users_[id] = anime;
+		}		
 		fs.close();
 	}
 }
@@ -93,14 +93,11 @@ void Server::exportAnime()
 	for (auto& user : users_)
 	{
 		fs.open("database/anime_list_" + std::to_string(user.first) + ".txt", std::fstream::out);
-		for (auto& anime_map : user.second)
+		for (auto& anime : user.second)
 		{
-			for (auto& anime : anime_map)
-			{
-				std::string name = anime.second.name;
-				std::replace(name.begin(), name.end(), ' ', '_');
-				fs << anime.first << " " << name << " " << anime.second.season << " " << anime.second.episode << std::endl;
-			}
+			std::string name = anime.second.name;
+			std::replace(name.begin(), name.end(), ' ', '_');
+			fs << anime.first << " " << name << " " << anime.second.season << " " << anime.second.episode << std::endl;
 		}
 		fs.close();
 	}
@@ -181,7 +178,7 @@ std::string Server::getLastEpisodeUrl(const std::string& url)
 	return episodes.back();
 }
 
-int Server::getStatusCode(const std::string& url)
+int Server::getStatusCode(const std::string& url) const
 {
 	long http_code = 0;
 	curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
@@ -200,18 +197,15 @@ std::string Server::addAnime(uint64_t id, const std::string& url)
 	else if (status_code == 200)
 	{
 		std::string url_name = getAnimeUrlName(url);
-		if (std::find_if(users_[id].begin(), users_[id].end(), [&url_name](Anime_map& anime_map)
-		{
-			return anime_map.find(url_name) != anime_map.end();
-		}) != users_[id].end())
+		if (users_[id].find(url_name) != users_[id].end())
 		{
 			return (url_name + " уже есть в списке");
 		}
 		else
 		{
-			Anime_map anime;
-			anime.insert(std::make_pair(url_name, getData(url)));
-			users_[id].push_back(anime);
+			//Anime_map anime;
+			//anime.insert(std::make_pair(url_name, getData(url)));
+			users_[id].insert(std::make_pair(url_name, getData(url)));
 			return "Аниме добавлено";
 		}
 	}
@@ -221,39 +215,64 @@ std::string Server::addAnime(uint64_t id, const std::string& url)
 	}
 }
 
-std::string Server::removeAnime(uint64_t id, const std::string& url)
+std::string Server::removeAnime(uint64_t id, const std::string& name)
 {
-	std::string url_name = getAnimeUrlName(url);
-	if (std::find_if(users_[id].begin(), users_[id].end(), [&url_name](Anime_map& anime_map)
+	if (users_[id].erase(name))
 	{
-			return anime_map.find(url_name) != anime_map.end();
-	}) != users_[id].end())
-	{
-		users_[id].erase(std::remove_if(users_[id].begin(), users_[id].end(), [&url_name](Anime_map& anime_map)
-		{
-			return anime_map.find(url_name) != anime_map.end();
-		}));
 		return "Аниме удалено";
 	}
 	else
 	{
-		return (url_name + " нет в вашем списке");
+		return "Что-то пошло не так :(";
 	}
+}
+
+std::vector<std::vector<std::pair<std::string, std::string>>> Server::getUserAnime(uint64_t id)
+{
+	std::vector<std::vector<std::pair<std::string, std::string>>> user_anime;
+	std::vector<std::pair<std::string, std::string>> anime_row;
+	int counter = 0;
+	for (auto& anime : users_[id])
+	{
+		if (counter < 3)
+		{
+			anime_row.push_back({ anime.second.name, anime.first });
+			counter++;
+		}
+		else
+		{
+			user_anime.push_back(anime_row);
+			anime_row.clear();
+			counter = 0;
+			anime_row.push_back({ anime.second.name, anime.first });
+			counter++;
+		}
+	}
+	user_anime.push_back(anime_row);
+	user_anime.push_back({ { "Удалить все", "deleteallanime" } });
+	return user_anime;
+}
+
+Anime_map Server::getAnimeMap(uint64_t id)
+{
+	return users_[id];
 }
 
 std::string Server::getAnimeList(uint64_t id)
 {
 	std::string list = "";
-	for (auto& anime_map : users_[id])
+	for (auto& anime : users_[id])
 	{
-		for (auto& anime : anime_map)
-		{
-			list += "Название: <a href=\"https://jut.su/" + anime.first + "\">" + anime.second.name + "</a>" + "\n";
-			list += "Сезон: " + std::to_string(anime.second.season) + " Серия: " + std::to_string(anime.second.episode) + "\n\n";
-
-		}
+		list += "Название: <a href=\"https://jut.su/" + anime.first + "\">" + anime.second.name + "</a>" + "\n";
+		list += "Сезон: " + std::to_string(anime.second.season) + " Серия: " + std::to_string(anime.second.episode) + "\n\n";
 	}
 	return list;
+}
+
+std::string Server::removeAllAnime(uint64_t id)
+{
+	users_[id].clear();
+	return "Все аниме удалены";
 }
 
 Users_map Server::checkNews()
@@ -262,19 +281,16 @@ Users_map Server::checkNews()
 	Users_map users_map;
 	for (auto& user : users_)
 	{
-		for (auto& anime_list : user.second)
+		for (auto& anime : user.second)
 		{
-			for (auto& anime : anime_list)
+			if (anime_map.find(anime.first) == anime_map.end())
 			{
-				if (anime_map.find(anime.first) == anime_map.end())
+				std::string domen = "https://jut.su/";
+				Data data = getData(domen + anime.first);
+
+				if (anime.second.episode != data.episode)
 				{
-					std::string domen = "https://jut.su/";
-					Data data = getData(domen + anime.first);
-				
-					if (anime.second.episode != data.episode)
-					{
-						anime_map.insert(std::make_pair(anime.first, data));
-					}
+					anime_map.insert(std::make_pair(anime.first, data));
 				}
 			}
 		}
@@ -282,18 +298,15 @@ Users_map Server::checkNews()
 
 	for (auto& user : users_)
 	{
-		for (auto& anime_list : user.second)
+		for (auto& anime : anime_map)
 		{
-			for (auto& anime : anime_map)
+			if (user.second.find(anime.first) != user.second.end())
 			{
-				if (anime_list.find(anime.first) != anime_list.end())
-				{
-					Anime_map reserve_anime;
-					reserve_anime.insert(std::make_pair(anime.first, Data { anime.second.name, anime.second.season, anime.second.episode }));
-					users_map[user.first].push_back(reserve_anime);
-					anime_list[anime.first].season = anime.second.season;
-					anime_list[anime.first].episode = anime.second.episode;
-				}
+				Anime_map reserve_anime;
+				reserve_anime.insert(std::make_pair(anime.first, Data{ anime.second.name, anime.second.season, anime.second.episode }));
+				users_map[user.first] = reserve_anime;
+				user.second[anime.first].season = anime.second.season;
+				user.second[anime.first].episode = anime.second.episode;
 			}
 		}
 	}

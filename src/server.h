@@ -17,7 +17,7 @@ struct Data
 };
 
 typedef std::unordered_map<std::string, Data> Anime_map;
-typedef std::unordered_map<uint64_t, std::vector<Anime_map>> Users_map;
+typedef std::unordered_map<uint64_t, Anime_map> Users_map;
 
 class Server
 {
@@ -34,18 +34,21 @@ public:
 
 private:
 	void importAnime();
-	static size_t WriteCallBack(void* contents, size_t size, size_t nmemb, void* userp);
-	std::string getAnimeName(const std::string& url);
-	std::string getAnimeUrlName(const std::string& url);
 	void parseHtml(const std::string& url);
 	Data getData(const std::string& url);
+	int getStatusCode(const std::string& url) const;
+	std::string getAnimeName(const std::string& url);
+	std::string getAnimeUrlName(const std::string& url);
 	std::string getLastEpisodeUrl(const std::string& url);
-	int getStatusCode(const std::string& url);
+	static size_t WriteCallBack(void* contents, size_t size, size_t nmemb, void* userp);
 	
 public:
 	void exportAnime();
-	std::string addAnime(uint64_t id, const std::string& url);
-	std::string removeAnime(uint64_t id, const std::string& url);
-	std::string getAnimeList(uint64_t id);
 	Users_map checkNews();
+	Anime_map getAnimeMap(uint64_t id);
+	std::string getAnimeList(uint64_t id);
+	std::string removeAllAnime(uint64_t id);
+	std::string addAnime(uint64_t id, const std::string& url);
+	std::string removeAnime(uint64_t id, const std::string& name);
+	std::vector<std::vector<std::pair<std::string, std::string>>> getUserAnime(uint64_t id);
 };

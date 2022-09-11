@@ -52,18 +52,10 @@ std::string help()
 int main()
 {
 	Server server;
-	
+
 	bool addNewAnime_flag = false;
-	bool removeAnime_flag = false;
-	
+
 	TgBot::Bot bot(token::token);
-
-	TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup);
-
-	initializeKeyboard(keyboard, {
-		{{"Мои аниме", "myanimelist"}},
-		{{"Добавить новое аниме", "addnewanime"}, {"Удалить аниме", "removeanime"}}
-	});
 
 	bot.getApi().setMyCommands(setMenuCommands({
 		{"myanimelist", "Ваш список аниме"},
@@ -71,9 +63,9 @@ int main()
 		{"removeanime", "Удалить аниме"},
 		{"buttons", "Показать кнопочки"},
 		{"help", "Ознакомительное сообщение"}
-	}));
+		}));
 
-	bot.getEvents().onCommand("start", [&bot, &keyboard](TgBot::Message::Ptr message)
+	bot.getEvents().onCommand("start", [&bot](TgBot::Message::Ptr message)
 	{
 		bot.getApi().sendMessage(message->chat->id, help());
 	});
@@ -83,27 +75,33 @@ int main()
 		bot.getApi().sendMessage(message->chat->id, help());
 	});
 
-	bot.getEvents().onCommand("buttons", [&bot, &keyboard](TgBot::Message::Ptr message)
-	{	
+	bot.getEvents().onCommand("buttons", [&bot](TgBot::Message::Ptr message)
+	{
+		TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup);
+		initializeKeyboard(keyboard, {
+			{{"Мои аниме", "myanimelist"}},
+			{{"Добавить новое аниме", "addnewanime"}, {"Удалить аниме", "removeanime"}}
+			});
 		bot.getApi().sendMessage(message->chat->id, "Кнопочки:", false, 0, keyboard);
 	});
 
-	bot.getEvents().onCommand("myanimelist", [&bot, &keyboard, &server](TgBot::Message::Ptr message)
+	bot.getEvents().onCommand("myanimelist", [&bot, &server](TgBot::Message::Ptr message)
 	{
 		std::string list = server.getAnimeList(message->from->id);
 		bot.getApi().sendMessage(message->chat->id, (list.empty() ? "Ваш список пуст :(" : "Ваш список аниме:\n\n" + list), true, 0, nullptr, "HTML");
 	});
-	
-	bot.getEvents().onCommand("addnewanime", [&bot, &keyboard, &addNewAnime_flag](TgBot::Message::Ptr message)
+
+	bot.getEvents().onCommand("addnewanime", [&bot, &addNewAnime_flag](TgBot::Message::Ptr message)
 	{
 		addNewAnime_flag = true;
 		bot.getApi().sendMessage(message->chat->id, "Введите ссылку на аниме");
 	});
 
-	bot.getEvents().onCommand("removeanime", [&bot, &keyboard, &removeAnime_flag](TgBot::Message::Ptr message)
+	bot.getEvents().onCommand("removeanime", [&bot, &server](TgBot::Message::Ptr message)
 	{
-		removeAnime_flag = true;
-		bot.getApi().sendMessage(message->chat->id, "Введите ссылку на аниме");
+		TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup);
+		initializeKeyboard(keyboard, server.getUserAnime(message->from->id));
+		bot.getApi().sendMessage(message->chat->id, "Выберите аниме", false, 0, keyboard);
 	});
 
 	bot.getEvents().onCallbackQuery([&](TgBot::CallbackQuery::Ptr query)
@@ -120,12 +118,25 @@ int main()
 		}
 		else if (StringTools::startsWith(query->data, "removeanime"))
 		{
-			removeAnime_flag = true;
-			bot.getApi().sendMessage(query->message->chat->id, "Введите ссылку на аниме");
+			TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup);
+			initializeKeyboard(keyboard, server.getUserAnime(query->from->id));
+			bot.getApi().sendMessage(query->message->chat->id, "Выберите аниме", false, 0, keyboard);
 		}
 		else if (StringTools::startsWith(query->data, "help"))
 		{
 			bot.getApi().sendMessage(query->message->chat->id, help());
+		}
+		else
+		{
+			auto anime_map = server.getAnimeMap(query->from->id);
+			if (anime_map.find(query->data) != anime_map.end())
+			{
+				bot.getApi().sendMessage(query->message->chat->id, (server.removeAnime(query->from->id, query->data)));
+			}
+			else if (query->data == "deleteallanime")
+			{
+				bot.getApi().sendMessage(query->message->chat->id, (server.removeAllAnime(query->from->id)));
+			}
 		}
 	});
 
@@ -137,16 +148,9 @@ int main()
 			addNewAnime_flag = false;
 			return;
 		}
-		else if ((removeAnime_flag) && (StringTools::startsWith(message->text, "https://jut.su/")))
-		{
-			bot.getApi().sendMessage(message->chat->id, server.removeAnime(message->from->id, message->text));
-			removeAnime_flag = false;
-			return;
-		}
 		else
 		{
 			addNewAnime_flag = false;
-			removeAnime_flag = false;
 		}
 	});
 
@@ -155,9 +159,9 @@ int main()
 		std::cout << "Bot username: " << bot.getApi().getMe()->username << std::endl;
 		std::cout << "Bot id: " << bot.getApi().getMe()->id << std::endl;
 		TgBot::TgLongPoll longPoll(bot);
-		
+
 		bool quit = false;
-		
+
 		std::thread th_cmd([&bot, &quit]()
 		{
 			std::string cmd;
@@ -182,20 +186,17 @@ int main()
 			while (true)
 			{
 				Users_map users = server.checkNews();
-				
+
 				for (auto& user : users)
 				{
 					std::string list;
-					for (auto& anime_list : user.second)
+					for (auto& anime : user.second)
 					{
-						for (auto& anime : anime_list)
-						{
-							list += "Название: <a href=\"https://jut.su/" + anime.first + "\">" + anime.second.name + "</a>" + "\n";
-							list += "Сезон: " + std::to_string(anime.second.season) + " Серия: " + std::to_string(anime.second.episode) + "\n";
-							list += "https://jut.su/" + anime.first + "/season-" +
-								std::to_string(anime.second.season) + "/episode-" +
-								std::to_string(anime.second.episode) + ".html\n\n";
-						}
+						list += "Название: <a href=\"https://jut.su/" + anime.first + "\">" + anime.second.name + "</a>" + "\n";
+						list += "Сезон: " + std::to_string(anime.second.season) + " Серия: " + std::to_string(anime.second.episode) + "\n";
+						list += "https://jut.su/" + anime.first + "/season-" +
+							std::to_string(anime.second.season) + "/episode-" +
+							std::to_string(anime.second.episode) + ".html\n\n";
 					}
 					bot.getApi().sendMessage(user.first, "Новые серии:\n\n" + list, true, 0, nullptr, "HTML");
 				}
