@@ -18,6 +18,7 @@ struct Data
 
 typedef std::unordered_map<std::string, Data> Anime_map;
 typedef std::unordered_map<uint64_t, Anime_map> Users_map;
+typedef std::vector<std::vector<std::pair<std::string, std::string>>> Keyboard_buttons;
 
 class Server
 {
@@ -34,8 +35,8 @@ public:
 
 private:
 	void importAnime();
-	void parseHtml(const std::string& url);
 	Data getData(const std::string& url);
+	void parseHtml(const std::string& url);
 	int getStatusCode(const std::string& url) const;
 	std::string getAnimeName(const std::string& url);
 	std::string getAnimeUrlName(const std::string& url);
@@ -48,7 +49,7 @@ public:
 	Anime_map getAnimeMap(uint64_t id);
 	std::string getAnimeList(uint64_t id);
 	std::string removeAllAnime(uint64_t id);
+	Keyboard_buttons getUserAnime(uint64_t id);
 	std::string addAnime(uint64_t id, const std::string& url);
 	std::string removeAnime(uint64_t id, const std::string& name);
-	std::vector<std::vector<std::pair<std::string, std::string>>> getUserAnime(uint64_t id);
 };

@@ -100,8 +100,16 @@ int main()
 	bot.getEvents().onCommand("removeanime", [&bot, &server](TgBot::Message::Ptr message)
 	{
 		TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup);
-		initializeKeyboard(keyboard, server.getUserAnime(message->from->id));
-		bot.getApi().sendMessage(message->chat->id, "Выберите аниме", false, 0, keyboard);
+		Keyboard_buttons user_anime = server.getUserAnime(message->from->id);
+		if (user_anime.empty())
+		{
+			bot.getApi().sendMessage(message->chat->id, "Ваш список пуст");
+		}
+		else
+		{
+			initializeKeyboard(keyboard, user_anime);
+			bot.getApi().sendMessage(message->chat->id, "Выберите аниме", false, 0, keyboard);
+		}
 	});
 
 	bot.getEvents().onCallbackQuery([&](TgBot::CallbackQuery::Ptr query)
@@ -119,8 +127,16 @@ int main()
 		else if (StringTools::startsWith(query->data, "removeanime"))
 		{
 			TgBot::InlineKeyboardMarkup::Ptr keyboard(new TgBot::InlineKeyboardMarkup);
-			initializeKeyboard(keyboard, server.getUserAnime(query->from->id));
-			bot.getApi().sendMessage(query->message->chat->id, "Выберите аниме", false, 0, keyboard);
+			Keyboard_buttons user_anime = server.getUserAnime(query->from->id);
+			if (user_anime.empty())
+			{
+				bot.getApi().sendMessage(query->message->chat->id, "Ваш список пуст");
+			}
+			else
+			{
+				initializeKeyboard(keyboard, user_anime);
+				bot.getApi().sendMessage(query->message->chat->id, "Выберите аниме", false, 0, keyboard);
+			}
 		}
 		else if (StringTools::startsWith(query->data, "help"))
 		{
@@ -128,7 +144,7 @@ int main()
 		}
 		else
 		{
-			auto anime_map = server.getAnimeMap(query->from->id);
+			Anime_map anime_map = server.getAnimeMap(query->from->id);
 			if (anime_map.find(query->data) != anime_map.end())
 			{
 				bot.getApi().sendMessage(query->message->chat->id, (server.removeAnime(query->from->id, query->data)));

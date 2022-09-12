@@ -55,7 +55,6 @@ void Server::importAnime()
 	for (auto& file : files)
 	{
 		fs.open(file, std::fstream::in);
-		Anime_map anime;
 		while (std::getline(fs, line))
 		{
 			std::stringstream ss(line);
@@ -72,8 +71,7 @@ void Server::importAnime()
 			uint64_t id;
 			std::istringstream isid(s_id);
 			isid >> id;
-			anime.insert(std::make_pair(anime_arr[0], Data{ name , std::stoi(anime_arr[2]), std::stoi(anime_arr[3]) }));
-			users_[id] = anime;
+			users_[id].insert(std::make_pair(anime_arr[0], Data{ name , std::stoi(anime_arr[2]), std::stoi(anime_arr[3]) }));
 		}		
 		fs.close();
 	}
@@ -199,12 +197,10 @@ std::string Server::addAnime(uint64_t id, const std::string& url)
 		std::string url_name = getAnimeUrlName(url);
 		if (users_[id].find(url_name) != users_[id].end())
 		{
-			return (url_name + " уже есть в списке");
+			return (getAnimeName(url) + " уже есть в списке");
 		}
 		else
 		{
-			//Anime_map anime;
-			//anime.insert(std::make_pair(url_name, getData(url)));
 			users_[id].insert(std::make_pair(url_name, getData(url)));
 			return "Аниме добавлено";
 		}
@@ -227,9 +223,13 @@ std::string Server::removeAnime(uint64_t id, const std::string& name)
 	}
 }
 
-std::vector<std::vector<std::pair<std::string, std::string>>> Server::getUserAnime(uint64_t id)
+Keyboard_buttons Server::getUserAnime(uint64_t id)
 {
-	std::vector<std::vector<std::pair<std::string, std::string>>> user_anime;
+	if (users_[id].empty())
+	{
+		return Keyboard_buttons();
+	}
+	Keyboard_buttons user_anime;
 	std::vector<std::pair<std::string, std::string>> anime_row;
 	int counter = 0;
 	for (auto& anime : users_[id])
@@ -277,7 +277,7 @@ std::string Server::removeAllAnime(uint64_t id)
 
 Users_map Server::checkNews()
 {
-	Anime_map anime_map;
+	std::unordered_map<std::string, Data> anime_map;
 	Users_map users_map;
 	for (auto& user : users_)
 	{
@@ -302,9 +302,7 @@ Users_map Server::checkNews()
 		{
 			if (user.second.find(anime.first) != user.second.end())
 			{
-				Anime_map reserve_anime;
-				reserve_anime.insert(std::make_pair(anime.first, Data{ anime.second.name, anime.second.season, anime.second.episode }));
-				users_map[user.first] = reserve_anime;
+				users_map[user.first].insert(std::make_pair(anime.first, Data{ anime.second.name, anime.second.season, anime.second.episode }));
 				user.second[anime.first].season = anime.second.season;
 				user.second[anime.first].episode = anime.second.episode;
 			}
