@@ -241,6 +241,7 @@ int main()
 	}
 	catch (TgBot::TgException& e)
 	{
+		server.exportAnime();
 		std::cout << "[ Error ] " << e.what() << std::endl;
 	}
 
