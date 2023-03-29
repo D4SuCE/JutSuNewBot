@@ -31,10 +31,10 @@ endif()
 
 include_directories(include)
 link_directories(lib)
-add_executable (JutSuNewBot  "src/main.cpp" "src/server.cpp" "src/iconvlite.cpp")
+add_executable (JutSuNewBot  "src/main.cpp" "src/iconvlite.cpp" "src/localDatabase.cpp" "src/parser.cpp" "src/localDatabaseManager.cpp" "src/bot.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET JutSuNewBot PROPERTY CXX_STANDARD 20)
 endif()
 
-target_link_libraries(JutSuNewBot libTgBot.a stdc++fs ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} ${CURL_LIBRARIES})
+target_link_libraries(JutSuNewBot libTgBot.a ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} ${CURL_LIBRARIES})
