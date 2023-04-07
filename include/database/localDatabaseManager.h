@@ -1,14 +1,12 @@
 #pragma once
 
 #include "data/data.h"
-#include "parser/parser.h"
 #include "localDatabase.h"
 #include "databaseManager.h"
 
 class LocalDatabaseManager : public DatabaseManager
 {
 private:
-	Parser parser;
 	LocalDatabase db;
 
 public:

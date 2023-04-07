@@ -5,6 +5,5 @@ int main()
 {
 	Bot bot(token::token);
 	bot.run();
-
 	return 0;
 }

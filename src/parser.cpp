@@ -1,8 +1,43 @@
 #include "parser/parser.h"
 #include "details/details.h"
 
-Parser::Parser()
-	: curl(curl_easy_init()), headers(NULL)
+std::string Parser::parse(const std::string& url)
+{
+	CURL* curl = curl_easy_init();
+	struct curl_slist* headers;
+	initHeaders(headers);
+	std::string htmlBuffer;
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallBack);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &htmlBuffer);
+	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	curl_easy_perform(curl);
+	curl_easy_cleanup(curl);
+	curl_slist_free_all(headers);
+	return htmlBuffer;
+}
+
+int64_t Parser::getStatusCode(const std::string& url)
+{
+	CURL* curl = curl_easy_init();
+	struct curl_slist* headers;
+	initHeaders(headers);
+	int64_t httpCode = 0;
+	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	curl_easy_perform(curl);
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+	curl_easy_cleanup(curl);
+	curl_slist_free_all(headers);
+	return httpCode;
+}
+
+size_t Parser::writeCallBack(void* contents, size_t size, size_t nmemb, void* userp)
+{
+	((std::string*)userp)->append((char*)contents, size * nmemb);
+	return size * nmemb;
+}
+
+void Parser::initHeaders(struct curl_slist* headers)
 {
 	headers = curl_slist_append(headers, details::authority);
 	headers = curl_slist_append(headers, details::accept);
@@ -18,36 +53,4 @@ Parser::Parser()
 	headers = curl_slist_append(headers, details::sec_fetch_user);
 	headers = curl_slist_append(headers, details::upgrade_insecure_requests);
 	headers = curl_slist_append(headers, details::user_agent);
-	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallBack);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &htmlBuffer);
-}
-
-Parser::~Parser()
-{
-	curl_easy_cleanup(curl);
-	curl_slist_free_all(headers);
-}
-
-std::string Parser::parse(const std::string& url)
-{
-	htmlBuffer = "";
-	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-	curl_easy_perform(curl);
-	return htmlBuffer;
-}
-
-int Parser::getStatusCode(const std::string& url) const
-{
-	long httpCode = 0;
-	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-	curl_easy_perform(curl);
-	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-	return httpCode;
-}
-
-size_t Parser::writeCallBack(void* contents, size_t size, size_t nmemb, void* userp)
-{
-	((std::string*)userp)->append((char*)contents, size * nmemb);
-	return size * nmemb;
 }

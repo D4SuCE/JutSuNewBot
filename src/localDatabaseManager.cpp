@@ -1,9 +1,10 @@
 #include <regex>
+#include "parser/parser.h"
 #include "iconvlite/iconvlite.h"
 #include "database/localDatabaseManager.h"
 
 LocalDatabaseManager::LocalDatabaseManager(const LocalDatabase& db)
-	: parser(), db(db)
+	: db(db)
 {
 }
 
@@ -40,7 +41,7 @@ Data LocalDatabaseManager::getLastEpisodeInfo(const std::string& url)
 
 std::string LocalDatabaseManager::getAnimeName(const std::string& url)
 {
-	std::string html = parser.parse(url);
+	std::string html = Parser::parse(url);
 	std::string name = html.substr(html.find("<title>") + 7);
 	name = name.substr(0, name.find("</title>"));
 	std::string utfName = cp2utf(name);
@@ -57,7 +58,7 @@ std::string LocalDatabaseManager::getAnimeUrlName(const std::string& url)
 
 std::string LocalDatabaseManager::getLastEpisodeUrl(const std::string& url)
 {
-	std::string html = parser.parse(url);
+	std::string html = Parser::parse(url);
 	std::string urlName = getAnimeUrlName(url);
 	const std::regex regexFull("/" + urlName + "/season-+\\d+/episode-+\\d+.html");
 	const std::regex regexSmall("/" + urlName + "/episode-+\\d+.html");
@@ -170,7 +171,7 @@ KeyboardButtons LocalDatabaseManager::getUserAnime(uint64_t id)
 
 std::string LocalDatabaseManager::addAnime(uint64_t id, const std::string& url)
 {
-	long status_code = parser.getStatusCode(url);
+	long status_code = Parser::getStatusCode(url);
 	if (status_code == 404)
 	{
 		return "Аниме не найдено";
